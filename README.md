@@ -1,27 +1,30 @@
-# Pi Extension: Memory Tools
+# Pi Minimal memory
 
-A local-memory extension for Pi with scoped global, project, and date-based daily memories. It registers `memory_list_projects`, `memory_search`, `memory_read`, and `memory_remember` tools, and adds global memory to the session context when present.
+A local-memory Pi package with global, project, and date-based daily scopes. It adds global memory to session context when present and registers the `memory_list_projects`, `memory_search`, `memory_read`, and `memory_remember` tools.
 
 ## Install
 
-From this repository's root:
+Install for your user (the default):
 
 ```bash
-mkdir -p ~/.pi/agent/extensions
-cp memory.ts ~/.pi/agent/extensions/
+pi install git:github.com/yazdannl/pi-minimal-memory
 ```
 
-Restart Pi or run `/reload`. To try it for one invocation without copying it:
+For one invocation without saving the package in settings:
 
 ```bash
-pi --extension ./memory.ts
+pi -e git:github.com/yazdannl/pi-minimal-memory
 ```
 
-The path above is Pi's default user agent directory. If you use a custom agent directory, install the file under its `extensions/` directory instead.
+To install in the current project's settings instead, add `-l` to `pi install`; project packages load only after the project is trusted. Use `pi list` to check installed packages, `pi update --extensions` to update them, and `pi remove git:github.com/yazdannl/pi-minimal-memory` to uninstall.
+
+If you already load `memory.ts` directly from `~/.pi/agent/extensions/`, remove that duplicate registration before installing this package.
+
+The package manifest loads `extensions/memory.ts`. Pi provides its imported runtime packages; no separate runtime dependency installation is needed.
 
 ## Storage and limits
 
-Memory data is stored locally under `~/.pi/memory/`; this repository contains extension code only. This storage path is fixed by the extension and does not follow a custom Pi agent-directory setting. The default character limits are 4,000 for each scope. To override them, create `~/.pi/memory/config.json` with a `limits` object, for example:
+Memory data is stored locally under `~/.pi/memory/`; this repository contains extension code only. This path is fixed by the extension and does not follow a custom Pi agent-directory setting. The default character limits are 4,000 for each scope. To override them, create `~/.pi/memory/config.json` with a `limits` object, for example:
 
 ```json
 {
@@ -33,7 +36,7 @@ Memory data is stored locally under `~/.pi/memory/`; this repository contains ex
 }
 ```
 
-Project and topic names use lowercase letters, digits, and hyphens. When a memory exceeds its configured limit, the extension may compact it using the active authenticated model. No separate CLI or npm dependency is required; Pi supplies the imported runtime packages.
+Project and topic names use lowercase letters, digits, and hyphens. When a memory exceeds its configured limit, the extension may compact it using the active authenticated model.
 
 ## Tools
 
@@ -42,4 +45,4 @@ Project and topic names use lowercase letters, digits, and hyphens. When a memor
 - `memory_read` — read global, project/topic, or daily memory.
 - `memory_remember` — add, edit, or forget a memory entry.
 
-Review the source before loading it. Like other Pi extensions, it runs in the Pi process with that process's operating-system permissions.
+Review the source before installing. Extensions execute in the Pi process with that process's operating-system permissions.

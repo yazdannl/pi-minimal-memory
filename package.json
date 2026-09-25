@@ -1,0 +1,14 @@
+{
+  "name": "pi-minimal-memory",
+  "version": "1.0.0",
+  "description": "Pi Minimal memory: scoped local memory tools for Pi.",
+  "keywords": ["pi-package"],
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "pi": {
+    "extensions": ["./extensions/memory.ts"]
+  }
+}
