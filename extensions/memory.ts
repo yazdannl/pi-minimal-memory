@@ -218,6 +218,15 @@ async function listGlobalDailyDates(): Promise<string[]> {
     .filter(isValidDate);
 }
 
+async function listProjectInventory() {
+  const [projects, globalDailyDates] = await Promise.all([listProjects(), listGlobalDailyDates()]);
+  const lines = projects.map((project) =>
+    `${project.title} | topics: ${project.topics.join(", ") || "(none)"}`,
+  );
+  if (globalDailyDates.length) lines.push(`Global daily dates: ${globalDailyDates.join(", ")}`);
+  return { projects, globalDailyDates, text: lines.join("\n") || "(none)" };
+}
+
 async function listProjectDailySources(): Promise<ProjectDailySource[]> {
   const root = await getRoot();
   const entries = await readdir(root, { withFileTypes: true }).catch((error) => {
@@ -740,12 +749,11 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({}),
     executionMode: "sequential",
     async execute() {
-      const [projects, globalDailyDates] = await Promise.all([listProjects(), listGlobalDailyDates()]);
-      const lines = projects.map((project) =>
-        `${project.title} | topics: ${project.topics.join(", ") || "(none)"}`,
-      );
-      if (globalDailyDates.length) lines.push(`Global daily dates: ${globalDailyDates.join(", ")}`);
-      return result(lines.join("\n") || "(none)", { projects, globalDailyDates });
+      const inventory = await listProjectInventory();
+      return result(inventory.text, {
+        projects: inventory.projects,
+        globalDailyDates: inventory.globalDailyDates,
+      });
     },
   });
 
@@ -882,7 +890,17 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("before_agent_start", async (event) => {
     const target = await resolveTarget({ scope: "global" });
-    const content = await readOptional(target);
+    const [content, inventory] = await Promise.all([
+      readOptional(target),
+      listProjectInventory().catch(() => null),
+    ]);
+    if (inventory === null) {
+      delete event.systemPromptOptions.sections.pi_memory_projects;
+    } else {
+      event.systemPromptOptions.sections.pi_memory_projects =
+        `Saved memory projects and topics (consult only when relevant to the current task):\n${inventory.text}`;
+    }
+
     if (!content?.trim()) {
       delete event.systemPromptOptions.sections.pi_global_memory;
       return;
