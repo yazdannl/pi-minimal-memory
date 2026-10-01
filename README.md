@@ -1,6 +1,6 @@
 # Pi Minimal memory
 
-A local-memory Pi package with global, project, and date-based daily scopes. It adds global memory (when present) and the saved project/topic inventory to the initial agent context, and registers the `memory_list_projects`, `memory_search`, `memory_read`, and `memory_remember` tools.
+A local-memory Pi package with global, project, and date-based daily scopes. Its initial agent context includes global memory (when present), the saved project/topic inventory, and guidance to preserve durable project updates at session end. It also registers the `memory_list_projects`, `memory_search`, `memory_read`, and `memory_remember` tools.
 
 ## Install
 

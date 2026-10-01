@@ -897,8 +897,11 @@ export default function (pi: ExtensionAPI) {
     if (inventory === null) {
       delete event.systemPromptOptions.sections.pi_memory_projects;
     } else {
-      event.systemPromptOptions.sections.pi_memory_projects =
-        `Saved memory projects and topics (consult only when relevant to the current task):\n${inventory.text}`;
+      event.systemPromptOptions.sections.pi_memory_projects = [
+        "Saved memory projects and topics (consult only when relevant to the current task):",
+        inventory.text,
+        "Before ending each session, if project work produced durable project-specific decisions, setup changes, discoveries, or ongoing blockers, read the relevant project memory with memory_read and use memory_remember to add or update a concise entry (create the index if needed). Skip if nothing durable is new; avoid duplicates and transcripts.",
+      ].join("\n\n");
     }
 
     if (!content?.trim()) {
