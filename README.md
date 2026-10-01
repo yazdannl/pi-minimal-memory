@@ -24,14 +24,14 @@ The package manifest loads `extensions/memory.ts`. Pi provides its imported runt
 
 ## Storage and limits
 
-Memory data is stored locally under `~/.pi/memory/`; this repository contains extension code only. This path is fixed by the extension and does not follow a custom Pi agent-directory setting. The default character limits are 4,000 for each scope. To override them, create `~/.pi/memory/config.json` with a `limits` object, for example:
+Memory data is stored locally under `~/.pi/memory/`; this repository contains extension code only. This path is fixed by the extension and does not follow a custom Pi agent-directory setting. The default character limits are 16,000 for global, 8,000 for project, and 16,000 for daily. To override them, create `~/.pi/memory/config.json` with a `limits` object, for example:
 
 ```json
 {
   "limits": {
-    "global": 4000,
-    "project": 4000,
-    "daily": 4000
+    "global": 16000,
+    "project": 8000,
+    "daily": 16000
   }
 }
 ```

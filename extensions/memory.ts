@@ -8,7 +8,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Type } from "typebox";
 
 const memoryDir = join(homedir(), ".pi", "memory");
-const defaults = { global: 4000, project: 4000, daily: 4000 } as const;
+const defaults = { global: 16_000, project: 8_000, daily: 16_000 } as const;
 const maxConfiguredChars = 100_000;
 const maxCandidateChars = 200_000;
 const maxMemoryFileBytes = maxCandidateChars * 4;
