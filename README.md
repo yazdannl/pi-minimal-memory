@@ -2,7 +2,7 @@
 
 A local-memory Pi package with global, project, and date-based daily scopes. Its initial agent context includes global memory (when present), the saved project/topic inventory, and guidance to preserve durable project updates at session end. It also registers the `memory_list_projects`, `memory_search`, `memory_read`, and `memory_remember` tools, and the `/memory-refine` command.
 
-Agents are told to keep global entries short (a line or two per fact) and to put longer material in project or daily memory. `/memory-refine` is the memory compactor you can run yourself: the user triggers it instead of waiting for a memory to exceed its limit.
+Global memory is a tiny, selective hint sheet, not a notebook or reference index: one short sentence per entry, with a project/topic or file reference only when essential details need to be looked up. Agents are told to save only cross-project hints worth loading in every session, keep descriptions in project/daily memory, and update existing hints instead of accumulating clutter. The injected project/topic inventory already covers project discovery; global memory should not duplicate it. `/memory-refine` is the memory compactor you can run yourself: the user triggers it instead of waiting for a memory to exceed its limit.
 
 ## Install
 
