@@ -12,6 +12,8 @@ const defaults = { global: 16_000, project: 8_000, daily: 16_000 } as const;
 const maxConfiguredChars = 100_000;
 const maxCandidateChars = 200_000;
 const maxMemoryFileBytes = maxCandidateChars * 4;
+const compactionTimeoutMs = 180_000;
+const shutdownGraceMs = 10_000;
 const searchPageSize = 20;
 const dailyMigrationMarkerPath = ".daily-global-v1";
 const projectSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -55,6 +57,15 @@ function isMissing(error: unknown): boolean {
 
 function charCount(text: string): number {
   return Array.from(text).length;
+}
+
+/** Hard ceiling for one memory file: 1.5x its compaction limit. Writes above it are rejected. */
+function hardLimit(limit: number): number {
+  return Math.ceil((limit * 3) / 2);
+}
+
+function hardLimitMessage(displayPath: string, characters: number, limit: number): string {
+  return `${displayPath} would hold ${characters} characters, above its hard cap of ${hardLimit(limit)} (1.5x the ${limit}-character limit); compact it first with /memory-refine or write less.`;
 }
 
 function validKey(value: string, label: string): string {
@@ -582,14 +593,18 @@ async function compactMemory(
     "Memory data:",
     JSON.stringify({ candidate: content }),
   ].join("\n\n");
-  const response = await ctx.modelRegistry.complete(model, {
+  const response = await ctx.modelRegistry.streamSimple(model, {
     messages: [{ role: "user", content: [{ type: "text", text: prompt }], timestamp: Date.now() }],
   }, {
-    maxTokens: Math.min(64_000, Math.max(2_048, limit + 1_024)),
-    signal: AbortSignal.timeout(60_000),
+    // Reasoning models spend output tokens on thinking before the rewrite, so the cap
+    // must cover both. `/memory-refine` has no target, but still needs the headroom.
+    maxTokens: Math.min(64_000, Math.max(16_384, limit * 2)),
+    reasoning: "minimal",
+    signal: AbortSignal.timeout(compactionTimeoutMs),
     cacheRetention: "none",
     sessionId: uuidv7(),
-  });
+  }).result();
+  if (response.stopReason === "length") throw new Error("Compactor hit the token cap before finishing");
   if (response.stopReason !== "stop" || response.errorMessage) throw new Error("Compactor did not complete cleanly");
   let compacted = unwrapFence(response.content
     .filter((block): block is { type: "text"; text: string } => block.type === "text")
@@ -728,7 +743,13 @@ export default function (pi: ExtensionAPI) {
     if (!pending || pending.retryAt > Date.now() || activeCompactions.has(file)) return;
     const promise = Promise.resolve()
       .then(() => compactPending(target, ctx))
-      .catch(() => recordFailure(file))
+      .catch((error) => {
+        if (ctx.hasUI) {
+          const message = error instanceof Error ? error.message : String(error);
+          ctx.ui.notify(`Memory compaction failed for ${target.displayPath}: ${message}. Retrying later.`, "warning");
+        }
+        return recordFailure(file);
+      })
       .finally(() => {
         activeCompactions.delete(file);
         const latest = pendingCompactions.get(file);
@@ -834,7 +855,9 @@ export default function (pi: ExtensionAPI) {
         const current = await readOptional(target);
         if (hasMarker(current)) return;
         const candidate = makeCandidate(target, current, "add", section);
-        if (charCount(candidate) > maxCandidateChars) throw new Error("Daily memory migration exceeds the safe input ceiling");
+        const candidateCharacters = charCount(candidate);
+        if (candidateCharacters > maxCandidateChars) throw new Error("Daily memory migration exceeds the safe input ceiling");
+        if (candidateCharacters > hardLimit(dailyLimit)) throw new Error(hardLimitMessage(target.displayPath, candidateCharacters, dailyLimit));
         await writeAtomic(target, candidate);
         if (charCount(candidate) > dailyLimit) await queueCompaction(target, true);
         else await clearCompaction(target);
@@ -979,14 +1002,17 @@ export default function (pi: ExtensionAPI) {
       const target = await resolveTarget(params);
       const beforeWrite = await readOptional(target);
       const preflight = makeCandidate(target, beforeWrite, params.action, params.text, params.match);
-      if (charCount(preflight) > maxCandidateChars) throw new Error("One memory update exceeds the safe input ceiling; split it into concise entries");
-      await loadLimits();
+      const preflightCharacters = charCount(preflight);
+      if (preflightCharacters > maxCandidateChars) throw new Error("One memory update exceeds the safe input ceiling; split it into concise entries");
+      const preflightLimit = (await loadLimits())[target.scope];
+      if (preflightCharacters > hardLimit(preflightLimit)) throw new Error(hardLimitMessage(target.displayPath, preflightCharacters, preflightLimit));
       const saved = await withMemoryMutation(target, async () => {
         const [current, limits] = await Promise.all([readOptional(target), loadLimits()]);
         const candidate = makeCandidate(target, current, params.action, params.text, params.match);
         const characters = charCount(candidate);
         if (characters > maxCandidateChars) throw new Error("One memory update exceeds the safe input ceiling; split it into concise entries");
         const limit = limits[target.scope];
+        if (characters > hardLimit(limit)) throw new Error(hardLimitMessage(target.displayPath, characters, limit));
         await writeAtomic(target, candidate);
         if (characters > limit) await queueCompaction(target, true);
         else await clearCompaction(target);
@@ -1067,8 +1093,14 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_shutdown", async () => {
-    while (activeCompactions.size > 0) {
-      await Promise.allSettled([...activeCompactions.values()].map((active) => active.promise));
+    // A slow compactor must not hold the process open indefinitely; the pending
+    // manifest keeps unfinished work queued for the next session.
+    const deadline = Date.now() + shutdownGraceMs;
+    while (activeCompactions.size > 0 && Date.now() < deadline) {
+      await Promise.race([
+        Promise.allSettled([...activeCompactions.values()].map((active) => active.promise)),
+        new Promise<void>((resolveDelay) => setTimeout(resolveDelay, 250)),
+      ]);
     }
   });
 }

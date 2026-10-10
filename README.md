@@ -38,7 +38,7 @@ Memory data is stored locally under `~/.pi/memory/`; this repository contains ex
 }
 ```
 
-Project and topic names use lowercase letters, digits, and hyphens. When a memory exceeds its configured limit, the extension may compact it using the active authenticated model.
+Project and topic names use lowercase letters, digits, and hyphens. When a memory exceeds its configured limit, the extension may compact it using the active authenticated model. Each limit also has a hard cap at 1.5x its value (for example 12,000 characters for the default 8,000-character project limit): a write whose result would exceed that hard cap is rejected with an error instead of growing the file, so the only way back under the limit is compaction. Reads are never blocked by the cap.
 
 ## Tools
 
