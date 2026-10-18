@@ -4,6 +4,8 @@ A local-memory Pi package with global, project, and date-based daily scopes. Its
 
 Global memory is a tiny, selective hint sheet, not a notebook or reference index: one short sentence per entry, with a project/topic or file reference only when essential details need to be looked up. Agents are told to save only cross-project hints worth loading in every session, keep descriptions in project/daily memory, and update existing hints instead of accumulating clutter. The injected project/topic inventory already covers project discovery; global memory should not duplicate it. `/memory-refine` is the memory compactor you can run yourself: the user triggers it instead of waiting for a memory to exceed its limit.
 
+Project memory follows the same split: `<slug>/INDEX.md` is only a hint sheet (one short line per subject, pointing at the topic file that holds the details), and each distinct subject gets its own `<slug>/topics/<topic>.md`. Agents are told to write durable details to a topic file — `memory_remember` with `topic` creates it on first write — and to keep the matching index hint to one line instead of dumping notes into the index. An index write that would grow `INDEX.md` past 1,200 characters (or the project limit, if lower) is rejected with an error that points at the topic-file form; writes that shrink an already longer index are still allowed.
+
 ## Install
 
 Install for your user (the default):
@@ -44,8 +46,8 @@ Project and topic names use lowercase letters, digits, and hyphens. When a memor
 
 - `memory_list_projects` — list saved project topics and global daily dates.
 - `memory_search` — literal, case-insensitive search across saved memories.
-- `memory_read` — read global, project/topic, or daily memory.
-- `memory_remember` — add, edit, or forget a memory entry.
+- `memory_read` — read global, project/topic, or daily memory (the project index first, then the topics it points at).
+- `memory_remember` — add, edit, or forget a memory entry; a project entry without a topic targets the index hint sheet, so pass `topic` to write details.
 
 ## Commands
 
